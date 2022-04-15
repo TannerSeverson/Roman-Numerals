@@ -1,0 +1,167 @@
+enum RomanNumeral: String {
+    case i = "I"
+    case v = "V"
+    case x = "X"
+    case l = "L"
+    case c = "C"
+    case d = "D"
+    case m = "M"
+}
+extension RomanNumeral {
+    var value: Int {
+        switch self {
+            case .i: return 1
+            case .v: return 5
+            case .x: return 10
+            case .l: return 50
+            case .c: return 100
+            case .d: return 500
+            case .m: return 1000
+        }
+    }
+    var nextNumeral: RomanNumeral? {
+        switch self {
+            case .i: return .v
+            case .v: return .x
+            case .x: return .l
+            case .l: return .c
+            case .c: return .d
+            case .d: return .m
+            case .m: return nil
+        }
+    }
+    var previousNumeral: RomanNumeral? {
+        switch self {
+            case .i: return nil
+            case .v: return .i
+            case .x: return .v
+            case .l: return .x
+            case .c: return .l
+            case .d: return .c
+            case .m: return .d
+        }
+    }
+}
+
+enum NextOperationForRomanNumeralToInt {
+    case add
+    case subtract
+}
+enum NextOperationForIntToRomanNumeral {
+    case subtractByHighestNumeral
+    case subtractByNextAndHighestNumeral
+    case subtractByNextAndPreviousNumeral
+}
+
+/// Converts and Int to an optional string if given a valid number
+func convertIntToRomanNumeral(number: Int) -> String? {
+    guard number < 4000 else { return nil } // 3999 is highest valid number
+    
+    var number = number
+    var romanNumerals: [RomanNumeral] = []
+    
+    while number > 0 { // loop through until number equals 0
+        
+        // Determine the highest numeral that can be subtracted from `number`
+        let highestNumeral = highestRomanNumeralThatCanBeSubtracted(by: number)
+        
+        // The operation that should take place is dependent upon the leading int of `number`
+        switch nextOperationIntToRomanNumeral(for: number) {
+                
+            case .subtractByHighestNumeral: // leading int is not a 4 or 9
+                romanNumerals.append(highestNumeral)
+                number -= highestNumeral.value
+                
+            case .subtractByNextAndHighestNumeral: // leading int is 4
+                guard let nextNumeral = highestNumeral.nextNumeral else { return nil }
+                romanNumerals.append(highestNumeral)
+                romanNumerals.append(nextNumeral)
+                number -= nextNumeral.value - highestNumeral.value
+                
+            case .subtractByNextAndPreviousNumeral: // leading int is 9
+                guard
+                    let nextNumeral = highestNumeral.nextNumeral,
+                    let previousNumeral = highestNumeral.previousNumeral else { return nil }
+                romanNumerals.append(previousNumeral)
+                romanNumerals.append(nextNumeral)
+                number -= nextNumeral.value - previousNumeral.value
+        }
+    }
+    return convertRomanNumeralsToString(romanNumeral: romanNumerals)
+}
+
+
+
+/// Returns the highest Roman Numeral that a number can be subtracted by
+func highestRomanNumeralThatCanBeSubtracted(by number: Int) -> RomanNumeral {
+    if number >= RomanNumeral.m.value {
+        return .m
+    }
+    if number >= RomanNumeral.d.value {
+        return .d
+    }
+    if number >= RomanNumeral.c.value {
+        return .c
+    }
+    if number >= RomanNumeral.l.value {
+        return .l
+    }
+    if number >= RomanNumeral.x.value {
+        return .x
+    }
+    if number >= RomanNumeral.v.value {
+        return .v
+    }
+    return .i
+}
+
+/// Determines what the next operation should be for converting an Int to Roman Numerals
+func nextOperationIntToRomanNumeral(for number: Int) -> NextOperationForIntToRomanNumeral {
+    let numberArray = String(number).compactMap { Int(String($0)) }
+    switch numberArray[0] {
+        case 4: return .subtractByNextAndHighestNumeral
+        case 9: return .subtractByNextAndPreviousNumeral
+        default: return .subtractByHighestNumeral
+    }
+}
+
+/// Converts an array of `RomanNumeral` into a string
+func convertRomanNumeralsToString(romanNumeral: [RomanNumeral]) -> String {
+    var string = ""
+    for number in romanNumeral {
+        string += number.rawValue
+    }
+    return string
+}
+
+/// Converts Roman Numerals into an Int
+func convertRomanNumeralsToInt(_ romanNumerals: [RomanNumeral]) -> Int {
+    var number = 0
+    for (i, numeral) in romanNumerals.enumerated() {
+        guard romanNumerals.indices.contains(i+1) else { break } // guards against index out of range when trying to access the index + 1
+        let nextOperation = nextOperationRomanNumeralToInt(currentNumeral: numeral, nextNumeral: romanNumerals[i+1])
+        switch nextOperation {
+            case .add: number += numeral.value
+            case .subtract: number -= numeral.value
+        }
+    }
+    number += romanNumerals.last?.value ?? 0 // Last numeral is always added
+    return number
+}
+
+// Convert String Into Array Of Roman Numerals
+func convertToRomanNumerals(from string: String) -> [RomanNumeral]? {
+    var output: [RomanNumeral] = []
+    for character in string.uppercased() {
+        guard let romanNumeral = RomanNumeral(rawValue: String(character)) else { return nil }
+        output.append(romanNumeral)
+    }
+    return output
+}
+
+// Determines if the next operation should be addition or subtraction
+func nextOperationRomanNumeralToInt(currentNumeral: RomanNumeral, nextNumeral: RomanNumeral?) -> NextOperationForRomanNumeralToInt {
+    guard let nextNumeral = nextNumeral,
+          currentNumeral.value >= nextNumeral.value else { return .subtract }
+    return .add
+}
